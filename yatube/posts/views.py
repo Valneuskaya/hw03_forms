@@ -1,38 +1,39 @@
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_http_methods
 from django.core.paginator import Paginator
-
-from django.shortcuts import get_object_or_404, render, redirect
-
-from .models import Group, Post, User
+from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import PostForm
+from .models import Group, Post, User
 
-from django.contrib.auth.decorators import login_required
 
-
+@require_http_methods(["GET"])
 def index(request):
     posts = Post.objects.all()
     paginator = Paginator(posts, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     template = 'posts/index.html'
-    context = {'posts': posts, 'page_obj': page_obj, }
+    context = {'page_obj': page_obj, }
     return render(request, template, context)
 
 
+@require_http_methods(["GET"])
 def group_posts(request, slug):
     group = get_object_or_404(Group, slug=slug)
-    posts = Post.objects.filter(group=group).order_by('-pub_date')[:10]
+    posts = group.group_posts.all()
     paginator = Paginator(posts, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
+    template = 'posts/group_list.html'
     context = {
         'group': group,
-        'posts': posts,
         'page_obj': page_obj,
     }
-    return render(request, 'posts/group_list.html', context)
+    return render(request, template, context)
 
 
+@require_http_methods(["GET"])
 def profile(request, username):
     # Здесь код запроса к модели и создание словаря контекста
     author = get_object_or_404(User, username=username)
@@ -41,60 +42,50 @@ def profile(request, username):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     template = 'posts/profile.html'
-    title = 'Профайл пользователя ' + username
     context = {
-        'title': title,
         'page_obj': page_obj,
         'posts': posts,
-        'author': author,
     }
     return render(request, template, context)
 
 
 def post_detail(request, post_id):
     post = get_object_or_404(Post, pk=post_id)
-    group = Group.objects.filter(title=post.group).first()
     count = Post.objects.filter(author=post.author).count()
-    title = 'Пост '
     template = 'posts/post_detail.html'
     context = {
         'post': post,
         'count': count,
-        'title': title,
-        'group': group,
     }
     return render(request, template, context)
 
 
 @login_required
+@require_http_methods(["GET", "POST"])
 def post_create(request):
     groups = Group.objects.all()
-    if request.method == 'POST':
-        form = PostForm(request.POST)
-        if form.is_valid():
-            post = form.save(commit=False)
-            post.author = request.user
-            post.save()
-            return redirect(f'/profile/{post.author}/',
-                            {'form': form, 'groups': groups})
+    form = PostForm(request.POST or None)
+    if form.is_valid():
+        post = form.save(commit=False)
+        post.author = request.user
+        post.save()
+        return redirect(f'/profile/{post.author}/',
+                        {'form': form, 'groups': groups})
     form = PostForm()
     template = 'posts/create_post.html'
     return render(request, template, {'form': form, 'groups': groups})
 
 
 @login_required
+@require_http_methods(["GET", "POST"])
 def post_edit(request, post_id):
     is_edit = True
     post = get_object_or_404(Post, pk=post_id)
-    if request.method == 'POST':
-        form = PostForm(request.POST)
-        if form.is_valid():
-            post.author = request.user
-            post.pk = post_id
-            post.text = form.cleaned_data['text']
-            template = 'posts:post_detail'
-            post.save()
-            return redirect(template, post_id=post.pk)
+    form = PostForm(request.POST or None, instance=post)
+    if form.is_valid():
+        template = 'posts:post_detail'
+        post.save()
+        return redirect(template, post_id=post.pk)
     else:
         groups = Group.objects.all()
         form = PostForm(instance=post)
