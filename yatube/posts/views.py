@@ -45,6 +45,7 @@ def profile(request, username):
     context = {
         'page_obj': page_obj,
         'posts': posts,
+        'author': author,
     }
     return render(request, template, context)
 
