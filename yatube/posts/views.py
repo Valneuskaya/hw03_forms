@@ -44,7 +44,6 @@ def profile(request, username):
     template = 'posts/profile.html'
     context = {
         'page_obj': page_obj,
-        'posts': posts,
         'author': author,
     }
     return render(request, template, context)
@@ -71,7 +70,6 @@ def post_create(request):
         post.author = request.user
         post.save()
         return redirect('posts:profile', username=post.author.username)
-    form = PostForm()
     template = 'posts/create_post.html'
     return render(request, template, {'form': form, 'groups': groups})
 
@@ -86,10 +84,8 @@ def post_edit(request, post_id):
         template = 'posts:post_detail'
         post.save()
         return redirect(template, post_id=post.pk)
-    else:
-        groups = Group.objects.all()
-        form = PostForm(instance=post)
-        template = 'posts/create_post.html'
+    groups = Group.objects.all()
+    template = 'posts/create_post.html'
     context = {
         'form': form,
         'groups': groups,
