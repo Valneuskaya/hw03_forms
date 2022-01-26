@@ -70,6 +70,8 @@ def post_create(request):
         post.author = request.user
         post.save()
         return redirect('posts:profile', username=post.author.username)
+    else:
+        print(form.errors)
     template = 'posts/create_post.html'
     return render(request, template, {'form': form, 'groups': groups})
 
